@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+// #include "controller.ino"
+#include "OneButtonTiny.h"  // This example also works with reduced OneButtonTiny class saving.
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -10,15 +12,13 @@
 #define SCREEN_ADDRESS 0x3C
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#include "OneButtonTiny.h"  // This example also works with reduced OneButtonTiny class saving.
 
 // The actions I ca do...
 typedef enum {
-  ACTION_OFF,   // set LED "OFF".
-  ACTION_ON,    // set LED "ON"
-  ACTION_1,  // blink LED "SLOW"
-  ACTION_2,   // blink LED "FAST"
-  ACTION_3   // blink LED "FAST"
+  ACTION_MAIN,
+  ACTION_MANUAL,
+  ACTION_STATS,
+  ACTION_SET,
 } MyActions;
 
 typedef enum {
@@ -28,7 +28,8 @@ typedef enum {
   SET_3,
   SET_SAVE,
   SET_SURE,
-  SET_SAVED
+  SET_SAVING,
+  SET_SAVED,
 } SetActions;
 
 // 'test', 128x32px
@@ -67,14 +68,10 @@ const unsigned char myImage [] PROGMEM = {
   0xff, 0xff, 0xe1, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x0f, 0xff, 0xff, 0xff, 0xe0, 0x00, 0x00, 0x0f
 };
 
-
-
-MyActions nextAction = ACTION_OFF;  // no action when starting
+MyActions mainAction = ACTION_MAIN;  // no action when starting
 SetActions SetAction = SET_MAIN;  // no action when starting
 
-
 unsigned long wateringTime = 5000;
-
 unsigned long lastUpdateTime = 0;
 const unsigned long updateInterval = 200; // Update every 200 milliseconds
 
@@ -86,7 +83,10 @@ OneButtonTiny button(PIN_INPUT, true);  // This example also works with reduced 
 
 void setup() {
 
-  pinMode(PIN_LED, OUTPUT);  // sets the digital pin as output
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_RELAY, OUTPUT);
+
+  digitalWrite(PIN_RELAY, HIGH);
 
   button.attachClick(myClickFunction);
   button.attachDoubleClick(myDoubleClickFunction);
@@ -95,7 +95,6 @@ void setup() {
   Serial.begin(9600);
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
     for (;;)
       ; // Don't proceed, loop forever
   }
@@ -115,51 +114,64 @@ void loop() {
 
   // Screen Update HOME
   if (currentMillis - lastUpdateTime >= updateInterval) {
-
-
     display.clearDisplay(); 
     display.setCursor(0, 0);
     display.setTextColor(WHITE);
     
-    if (nextAction == ACTION_ON) { 
+    if (mainAction == ACTION_MAIN) { 
       int analogValue = analogRead(A0);
       int analogValue2 = analogRead(A1);
-    // Display the analog value on OLED
     
-   
-    display.print("Set: ");
-    display.println(analogValue);
+      display.print("Set: ");
+      display.println(analogValue);
 
 
-    display.setCursor(64, 0);
-    display.print("Cur: ");
-    display.println(analogValue2);
-    display.println("Testing ");
-    display.println("Cooldown: True");
+      display.setCursor(64, 0);
+      display.print("Cur: ");
+      display.println(analogValue2);
+      display.println("Testing ");
+      display.println("Cooldown: True");
 
-    display.setTextColor(BLACK, WHITE); // 'inverted' text
-    display.setCursor(0,24);
-    display.println("    Arkenin, 2024    ");
+      display.setTextColor(BLACK, WHITE); // 'inverted' text
+      display.setCursor(0,24);
+      display.println("    Arkenin, 2024    ");
 
-      
-    } else if (nextAction == ACTION_1) {
-      display.println("Set: Watering Time");
-      display.print(wateringTime);
-      display.print("ms");
-      int progressBarWidth = map(wateringTime, 0, 10000, 0, SCREEN_WIDTH - 1);
+    } else if (mainAction == ACTION_SET) {
+      if (SetAction == SET_1) {
+        int progressBarWidth = map(wateringTime, 0, 10000, 0, SCREEN_WIDTH - 1);
+        
+        display.println("Set: Watering Time");
+        display.print(wateringTime);
+        display.print("ms");
 
-      display.drawRect(0, 26, SCREEN_WIDTH - 1, 6, WHITE); // Outline
-      display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
-  
-  
-    } else if (nextAction == ACTION_2) {
-      display.print("Set: Minimum distance");
-  
-  
-    } else if (nextAction == ACTION_3) {
-      //display.print("Setings: 3");
-      display.drawBitmap(0, 0, myImage, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
-   
+        display.drawRect(0, 26, SCREEN_WIDTH - 1, 6, WHITE); // Outline
+        display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
+
+      } else if (SetAction == SET_2) {
+        display.print("Set 2: Minimum distance");
+    
+    
+      } else if (SetAction == SET_3) {
+        //display.print("Setings: 3");
+        display.drawBitmap(0, 0, myImage, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
+      } else if (SetAction == SET_SAVE) {
+        display.println("Long press: Save Settings");
+      } else if (SetAction == SET_SURE) {
+        display.println("Long press: Save Settings");
+        display.println("Sure?");
+      } else if (SetAction == SET_SAVING) {
+        display.println("Saving...");
+      } else if (SetAction == SET_SAVED) {
+        display.println("Saved.");
+      }
+
+
+
+    } else if (mainAction == ACTION_MANUAL) {
+      display.println("Manual Controll");
+    } else if (mainAction == ACTION_STATS) {
+      display.setTextSize(1);
+      display.println("TEMP/HM");
     }
 
     display.display();
@@ -170,6 +182,4 @@ void loop() {
   // Your additional loop code can go here
   // ...
 
-  // Other non-blocking tasks can be performed here
-  // ...
 }
