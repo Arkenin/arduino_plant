@@ -1,3 +1,5 @@
+#include "controller.h"
+
 void handle_actions(unsigned long now) {
   
   if (mainAction == ACTION_MAIN) {
@@ -25,6 +27,7 @@ void handle_actions(unsigned long now) {
 
     if (SetAction == SET_SAVING) {
       // doing save
+      update_display();
       delay(3000);
       SetAction = SET_SAVED;
     }
@@ -49,6 +52,14 @@ void myClickFunction() {
       mainAction = ACTION_MAIN;
       SetAction = SET_MAIN; 
     }
+  }
+if (mainAction == ACTION_MANUAL) {
+  manualWateringTime += 1000;
+
+  if (manualWateringTime > 10000) {
+    manualWateringTime = 1000;
+  }
+
   }
 }  // myClickFunction
 
@@ -82,6 +93,12 @@ void myLongPressFunction() {
 
   if (mainAction == ACTION_MAIN) {
     mainAction = ACTION_SET;
+    return;    
+  } else if (mainAction == ACTION_MANUAL) {
+    digitalWrite(PIN_RELAY, LOW);
+    // delay(manualWateringTime);
+    performDelayedAction(manualWateringTime);
+    digitalWrite(PIN_RELAY, HIGH);
     return;
   }
 
@@ -97,3 +114,22 @@ void myLongPressFunction() {
   }
 }  // myLongPressFunction
 
+
+void performDelayedAction(int delayTime) {
+  unsigned long previousMillis = 0;
+  const long interval = 50; // Interval between actions in milliseconds
+  int counter = 0; // Counter to keep track of the number of actions performed
+  progress = 0;
+
+  while (counter * interval < delayTime) {
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      progress = map(counter * interval, 0, delayTime, 0, 1000);
+      update_display();
+      previousMillis = currentMillis;
+      counter++;
+    }
+  }
+  update_display();
+  progress = 0;
+}

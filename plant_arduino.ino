@@ -2,35 +2,43 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "OneButtonTiny.h"
+
 // #include "controller.ino"
-#include "OneButtonTiny.h"  // This example also works with reduced OneButtonTiny class saving.
+#include "HelperEEPROM.h"
+#include "controller.h"
+
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+#define UPDATE_INTERVAL 200 // Update every 200 milliseconds
+
+
 
 #define OLED_RESET -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
-// The actions I ca do...
-typedef enum {
-  ACTION_MAIN,
-  ACTION_MANUAL,
-  ACTION_STATS,
-  ACTION_SET,
-} MyActions;
+// // The actions I ca do...
+// typedef enum {
+//   ACTION_MAIN,
+//   ACTION_MANUAL,
+//   ACTION_STATS,
+//   ACTION_SET,
+// } MyActions;
 
-typedef enum {
-  SET_MAIN,
-  SET_1,
-  SET_2,
-  SET_3,
-  SET_SAVE,
-  SET_SURE,
-  SET_SAVING,
-  SET_SAVED,
-} SetActions;
+// typedef enum {
+//   SET_MAIN,
+//   SET_1,
+//   SET_2,
+//   SET_3,
+//   SET_SAVE,
+//   SET_SURE,
+//   SET_SAVING,
+//   SET_SAVED,
+// } SetActions;
 
 // 'test', 128x32px
 const unsigned char myImage [] PROGMEM = {
@@ -71,9 +79,15 @@ const unsigned char myImage [] PROGMEM = {
 MyActions mainAction = ACTION_MAIN;  // no action when starting
 SetActions SetAction = SET_MAIN;  // no action when starting
 
-unsigned long wateringTime = 5000;
+// solid values
+uint16_t wateringTime = 5000;
+uint16_t manualWateringTime = 2000;
+uint32_t cooldown = 24 * 3600;
+uint16_t threshold = 600;
+
 unsigned long lastUpdateTime = 0;
-const unsigned long updateInterval = 200; // Update every 200 milliseconds
+
+int progress = 0;
 
 const int PIN_LED = 13; // Button connected to pin 13
 const int PIN_INPUT = 5; // Button connected to pin 5
@@ -93,6 +107,9 @@ void setup() {
   button.attachLongPressStart(myLongPressFunction);
 
   Serial.begin(9600);
+  // saveToEEPROM();
+  // readFromEEPROM();
+  // printEEPROMValues();
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     for (;;)
@@ -113,7 +130,18 @@ void loop() {
   handle_actions(now);
 
   // Screen Update HOME
-  if (currentMillis - lastUpdateTime >= updateInterval) {
+  if (currentMillis - lastUpdateTime >= UPDATE_INTERVAL) {
+    update_display();
+
+    lastUpdateTime = currentMillis;
+  } // Screen Update END
+
+  // Your additional loop code can go here
+  // ...
+
+}
+
+void update_display() {
     display.clearDisplay(); 
     display.setCursor(0, 0);
     display.setTextColor(WHITE);
@@ -138,12 +166,12 @@ void loop() {
 
     } else if (mainAction == ACTION_SET) {
       if (SetAction == SET_1) {
-        int progressBarWidth = map(wateringTime, 0, 10000, 0, SCREEN_WIDTH - 1);
         
         display.println("Set: Watering Time");
         display.print(wateringTime);
         display.print("ms");
 
+        int progressBarWidth = map(wateringTime, 0, 10000, 0, SCREEN_WIDTH - 1);
         display.drawRect(0, 26, SCREEN_WIDTH - 1, 6, WHITE); // Outline
         display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
 
@@ -168,18 +196,18 @@ void loop() {
 
 
     } else if (mainAction == ACTION_MANUAL) {
-      display.println("Manual Controll");
+      display.print("Man Controll: ");
+      display.print(manualWateringTime);
+
+      int progressBarWidth = map(progress, 0, 1000, 0, SCREEN_WIDTH - 1);
+      display.drawRect(0, 26, SCREEN_WIDTH - 1, 6, WHITE); // Outline
+      display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
+
     } else if (mainAction == ACTION_STATS) {
       display.setTextSize(1);
       display.println("TEMP/HM");
     }
 
     display.display();
-
-    lastUpdateTime = currentMillis;
-  } // Screen Update END
-
-  // Your additional loop code can go here
-  // ...
-
 }
+
