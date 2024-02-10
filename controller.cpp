@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "HelperEEPROM.h"
 
 void handle_actions(unsigned long now) {
   
@@ -28,7 +29,8 @@ void handle_actions(unsigned long now) {
     if (SetAction == SET_SAVING) {
       // doing save
       update_display();
-      delay(3000);
+      saveToEEPROM();
+      delay(1000);
       SetAction = SET_SAVED;
     }
 
@@ -41,12 +43,17 @@ void handle_actions(unsigned long now) {
 void myClickFunction() {
 
   if (mainAction == ACTION_SET) {
-    if (SetAction == SET_1) {
-      wateringTime += 1000;
+    if (SetAction == SET_MAIN) {
+      threshold += 10;
+      if (threshold > 1023) {threshold = 0;}
 
-      if (wateringTime > 10000) {
-        wateringTime = 1000;
-      }
+    } else if (SetAction == SET_1) {
+      wateringTime += 1000;
+      if (wateringTime > 10000) { wateringTime = 1000;}
+
+    } else if (SetAction == SET_2) {
+      cooldown *= 2;
+      if (cooldown > 2880) { cooldown = 5;}
 
     } else if (SetAction == SET_SURE || SetAction == SET_SAVED) {
       mainAction = ACTION_MAIN;
@@ -55,11 +62,7 @@ void myClickFunction() {
   }
 if (mainAction == ACTION_MANUAL) {
   manualWateringTime += 1000;
-
-  if (manualWateringTime > 10000) {
-    manualWateringTime = 1000;
-  }
-
+  if (manualWateringTime > 10000) {manualWateringTime = 1000;}
   }
 }  // myClickFunction
 
@@ -94,6 +97,7 @@ void myLongPressFunction() {
   if (mainAction == ACTION_MAIN) {
     mainAction = ACTION_SET;
     return;    
+
   } else if (mainAction == ACTION_MANUAL) {
     digitalWrite(PIN_RELAY, LOW);
     // delay(manualWateringTime);
@@ -103,11 +107,15 @@ void myLongPressFunction() {
   }
 
   if (mainAction == ACTION_SET) {
-    if (SetAction == SET_SAVE) {
+    if (SetAction == SET_MAIN) {
+      threshold += 100;
+      if (threshold > 1023) {threshold = 0;}
+
+    } else if (SetAction == SET_SAVE) {
       SetAction = SET_SURE;
     } else if (SetAction == SET_SURE) {
       SetAction = SET_SAVING;
-    } else if (SetAction == SET_MAIN) {
+    } else if (SetAction == SET_1 || SetAction == SET_2 || SetAction == SET_3) {
       mainAction = ACTION_MAIN;
     }
     return;

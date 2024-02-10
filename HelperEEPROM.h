@@ -1,5 +1,6 @@
 #ifndef HELPER_EEPROM_h
 #define HELPER_EEPROM_h
+
 #include <Arduino.h>
 #include <EEPROM.h>
 
@@ -12,11 +13,14 @@
 // solid values
 extern uint16_t wateringTime;
 extern uint16_t manualWateringTime;
-extern uint32_t cooldown;
+extern uint16_t cooldown;
 extern uint16_t threshold;
 
 void saveToEEPROM();
 void readFromEEPROM();
 void printEEPROMValues();
+
+void writeIntIntoEEPROM(int address, uint16_t number);
+void readIntFromEEPROM(int address, uint16_t* number);
 
 #endif

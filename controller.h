@@ -40,7 +40,7 @@ extern const int PIN_RELAY; // Button connected to pin 8
 extern int progress;
 extern uint16_t wateringTime;
 extern uint16_t manualWateringTime;
-extern uint32_t cooldown;
+extern uint16_t cooldown;
 extern uint16_t threshold;
 
 

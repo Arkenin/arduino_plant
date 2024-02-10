@@ -80,10 +80,10 @@ MyActions mainAction = ACTION_MAIN;  // no action when starting
 SetActions SetAction = SET_MAIN;  // no action when starting
 
 // solid values
-uint16_t wateringTime = 5000;
-uint16_t manualWateringTime = 2000;
-uint32_t cooldown = 24 * 3600;
-uint16_t threshold = 600;
+uint16_t wateringTime = 3000; // ms
+uint16_t manualWateringTime = 1000; // ms
+uint16_t cooldown = 5; // min
+uint16_t threshold = 550;
 
 unsigned long lastUpdateTime = 0;
 
@@ -107,9 +107,11 @@ void setup() {
   button.attachLongPressStart(myLongPressFunction);
 
   Serial.begin(9600);
+  delay(500);
+  Serial.println("Starting Serial");
   // saveToEEPROM();
-  // readFromEEPROM();
-  // printEEPROMValues();
+  readFromEEPROM();
+  printEEPROMValues();
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     for (;;)
@@ -147,12 +149,10 @@ void update_display() {
     display.setTextColor(WHITE);
     
     if (mainAction == ACTION_MAIN) { 
-      int analogValue = analogRead(A0);
       int analogValue2 = analogRead(A1);
     
       display.print("Set: ");
-      display.println(analogValue);
-
+      display.println(threshold);
 
       display.setCursor(64, 0);
       display.print("Cur: ");
@@ -165,7 +165,16 @@ void update_display() {
       display.println("    Arkenin, 2024    ");
 
     } else if (mainAction == ACTION_SET) {
-      if (SetAction == SET_1) {
+      if (SetAction == SET_MAIN) {
+        
+        display.println("Set: Threshold ");
+        display.print(threshold);
+
+        int progressBarWidth = map(threshold, 0, 1023, 0, SCREEN_WIDTH - 1);
+        display.drawRect(0, 26, SCREEN_WIDTH - 1, 6, WHITE); // Outline
+        display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
+
+      } else if (SetAction == SET_1) {
         
         display.println("Set: Watering Time");
         display.print(wateringTime);
@@ -176,16 +185,28 @@ void update_display() {
         display.fillRect(0, 26, progressBarWidth, 6, WHITE); // Fill
 
       } else if (SetAction == SET_2) {
-        display.print("Set 2: Minimum distance");
-    
+        display.println("Set: Cooldown Time");
+
+        display_time_minutes(cooldown);
     
       } else if (SetAction == SET_3) {
         //display.print("Setings: 3");
         display.drawBitmap(0, 0, myImage, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
+
       } else if (SetAction == SET_SAVE) {
-        display.println("Long press: Save Settings");
+        display.println("Long press to save...");
+        display.println("");
+        display.print("Trsh: ");
+        display.print(threshold);
+        display.print(" Water: ");
+        display.print(wateringTime/1000);
+        display.println("s");
+        display.print("Cooldown: ");
+        display.print(cooldown);
+        display.print("min");
+
       } else if (SetAction == SET_SURE) {
-        display.println("Long press: Save Settings");
+        display.println("Long press to save...");
         display.println("Sure?");
       } else if (SetAction == SET_SAVING) {
         display.println("Saving...");
@@ -211,3 +232,27 @@ void update_display() {
     display.display();
 }
 
+void display_time_minutes(uint16_t min){
+
+  uint8_t hours = min / 60;
+  uint8_t minutes = min % 60;
+
+  display.print(hours);
+  display.print("h");
+  display.print(minutes);
+  display.print("min");
+}
+
+void display_time_seconds(uint16_t sec){
+
+  uint8_t hours = sec / 3600;
+  uint8_t minutes = sec / 60;
+  uint8_t seconds = sec % 60;
+
+  display.print(hours);
+  display.print("h");
+  display.print(minutes);
+  display.print("min");
+  display.print(seconds);
+  display.print("s");
+}
