@@ -100,7 +100,6 @@ void myLongPressFunction() {
 
   } else if (mainAction == ACTION_MANUAL) {
     digitalWrite(PIN_RELAY, LOW);
-    // delay(manualWateringTime);
     performDelayedAction(manualWateringTime);
     digitalWrite(PIN_RELAY, HIGH);
     return;

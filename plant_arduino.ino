@@ -82,16 +82,20 @@ SetActions SetAction = SET_MAIN;  // no action when starting
 // solid values
 uint16_t wateringTime = 3000; // ms
 uint16_t manualWateringTime = 1000; // ms
-uint16_t cooldown = 5; // min
+uint16_t cooldown = 1; // min
 uint16_t threshold = 550;
 
 unsigned long lastUpdateTime = 0;
+unsigned long lastShot = 0;
+uint8_t shot = 0;
+int humSensor = 0;
+uint32_t remainingCooldown = 0;
 
 int progress = 0;
 
 const int PIN_LED = 13; // Button connected to pin 13
 const int PIN_INPUT = 5; // Button connected to pin 5
-const int PIN_RELAY = 8; // Button connected to pin 8
+const int PIN_RELAY = 11; // Button connected to pin 8
 
 OneButtonTiny button(PIN_INPUT, true);  // This example also works with reduced OneButtonTiny class saving.
 
@@ -127,12 +131,35 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
   button.tick();
+  handle_actions(currentMillis);
 
-  unsigned long now = millis();
-  handle_actions(now);
+
+  if (shot == 1 && (threshold < humSensor)) {
+    shot = 0;
+    lastShot = millis();
+    remainingCooldown = 0;
+    
+    digitalWrite(PIN_RELAY, LOW);
+    performDelayedAction(wateringTime);
+    digitalWrite(PIN_RELAY, HIGH);
+
+  }
 
   // Screen Update HOME
   if (currentMillis - lastUpdateTime >= UPDATE_INTERVAL) {
+    humSensor = analogRead(A2);
+
+    unsigned long cooldown_ms = cooldown * 60 * 1000L;
+
+    remainingCooldown = (cooldown_ms - (currentMillis - lastShot)) / 1000;
+    Serial.println(remainingCooldown);
+    Serial.println(cooldown_ms);
+    Serial.println(currentMillis - lastShot);
+
+    if (cooldown_ms < (currentMillis - lastShot)) {
+      shot = 1;
+    }
+
     update_display();
 
     lastUpdateTime = currentMillis;
@@ -149,16 +176,21 @@ void update_display() {
     display.setTextColor(WHITE);
     
     if (mainAction == ACTION_MAIN) { 
-      int analogValue2 = analogRead(A1);
     
       display.print("Set: ");
       display.println(threshold);
 
       display.setCursor(64, 0);
       display.print("Cur: ");
-      display.println(analogValue2);
-      display.println("Testing ");
-      display.println("Cooldown: True");
+      display.println(humSensor);
+      display.println("");
+
+      if (shot == 0) {
+        display.print("Cooldown: ");
+        display_time_seconds(remainingCooldown);
+      } else {
+        display.println("Cooldown: Ready");
+      }
 
       display.setTextColor(BLACK, WHITE); // 'inverted' text
       display.setCursor(0,24);
@@ -243,7 +275,7 @@ void display_time_minutes(uint16_t min){
   display.print("min");
 }
 
-void display_time_seconds(uint16_t sec){
+void display_time_seconds(uint32_t sec){
 
   uint8_t hours = sec / 3600;
   uint8_t minutes = sec / 60;
